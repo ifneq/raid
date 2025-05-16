@@ -244,12 +244,6 @@ The raid system automatically replicates state to clients for UI integration:
 - `PhaseChanged`: Fired when the phase changes
 - `RaidUpdate`: Continuously fired with current raid state
 
-## Known Limitations
-
-- All players must be on the same server
-- Limited built-in UI support (client-side UI must be implemented separately)
-- No built-in persistence system for raid progress
-
 ## License
 
 Created by F9MX (10/30/24)
