@@ -2,6 +2,9 @@
 
 A comprehensive framework for creating team-based raid/mission systems in Roblox games. This system provides a flexible architecture for implementing objective-based gameplay with multiple phases and customizable mechanics.
 
+## Note
+As this is a server implementation, I've attached an example client under example_client.lua, as well as a the UI under UIClient.rbxm
+
 ## Features
 
 - **Modular Phase System**: Create missions with multiple sequential objectives
