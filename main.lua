@@ -20,13 +20,8 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-
-local Shared = ReplicatedStorage.Shared
-
-local Network = require(Shared.Network)
 
 local Utility = {}
 do -- Utility
@@ -107,6 +102,168 @@ do -- Utility
 		end
 
 		return table.concat(Output)
+	end
+end
+
+local Network = {}
+do -- Network (Server Only, It's assymetrical)
+	local Players = game:GetService("Players")
+	
+	local UnreliableRemoteEvent = Utility.Create("UnreliableRemoteEvent", {
+		Parent = ReplicatedStorage
+	})
+	
+	local RemoteEvent = Utility.Create("RemoteEvent", {
+		Parent = ReplicatedStorage
+	})
+	
+	local BindableEvent = Utility.Create("Event", {
+		Parent = ReplicatedStorage
+	})
+
+	local Public = Utility.Create("Folder", {
+		Name = "Public",
+		Parent = ReplicatedStorage
+	})
+
+	local Local = Utility.Create("Folder", {
+		Name = "Local",
+		Parent = ReplicatedStorage
+	})
+
+	-- Self Communication
+	function Network:Fire(Channel, ...)
+		BindableEvent:Fire(Channel, ...)
+	end
+
+	function Network.Event(Channel, Callback)
+		return BindableEvent.Event:Connect(function(RecievedChannel, ...)
+			if RecievedChannel == Channel then
+				Callback(...)
+			end
+		end)
+	end
+
+	function Network:CreateLocalFunction(Channel, Callback)
+		local BindableFuncation = Utility.Create("BindableFunction", {
+			Name = Channel,
+			Parent = Local,
+		})
+
+		return BindableFuncation
+	end
+
+	function Network:DestroyLocalFunction(Channel)
+		Local:FindFirstChild(Channel):Destroy()
+	end
+
+	function Network:InvokeLocalFunction(Channel, ...)
+		local BindableFunction = Local:WaitForChild(Channel)
+		BindableFunction:Invoke(...)
+	end
+
+	function Network:ListenForLocalFunction(Channel, Callback)
+		local BindableFunction = Local:WaitForChild(Channel)
+		BindableFunction.OnInvoke = Callback
+	end
+
+	-- Server Communication
+	function Network:CreateFunction(Channel, Callback)
+		if RunService:IsServer() then
+			local RemoteFunction = Utility.Create("RemoteFunction", {
+				Name = Channel,
+				OnServerInvoke = Callback,
+				Parent = Public,
+			})
+
+			return RemoteFunction
+		end
+	end
+
+	function Network:SetFunction(Channel, Callback)
+		if RunService:IsServer() then
+			Public:FindFirstChild(Channel).OnServerInvoke = Callback
+		end
+	end
+
+	function Network:DestroyFunction(Channel)
+		if RunService:IsServer() then
+			Public:FindFirstChild(Channel):Destroy()
+		end
+	end
+
+	function Network:InvokeClient(Channel, ...)
+		if RunService:IsServer() then
+			local RemoteFunction = Public:FindFirstChild(Channel)
+
+			if RemoteFunction then
+				return RemoteFunction:InvokeClient(...)
+			end
+		end
+	end
+
+	function Network:UnreliableFireClient(Channel, ...)
+		if RunService:IsServer() then
+			UnreliableRemoteEvent:FireClient(Channel, ...)
+		end
+	end
+
+	function Network:FireClient(Client, Channel, ...)
+		if RunService:IsServer() then
+			RemoteEvent:FireClient(Client, Channel, ...)
+		end
+	end
+
+	function Network:UnreliableFireAllClients(Channel, ...)
+		if RunService:IsServer() then
+			UnreliableRemoteEvent:FireAllClients(Channel, ...)
+		end
+	end
+
+	function Network:FireAllClients(Channel, ...)
+		if RunService:IsServer() then
+			RemoteEvent:FireAllClients(Channel, ...)
+		end
+	end
+
+	function Network:UnreliableFireOtherClients(Client, Channel, ...)
+		if RunService:IsServer() then
+			for _, V in next, Players:GetPlayers() do
+				if V ~= Client then
+					UnreliableRemoteEvent:FireClient(V, Channel, ...)
+				end
+			end
+		end
+	end
+
+	function Network:FireOtherClients(Client, Channel, ...)
+		if RunService:IsServer() then
+			for _, V in next, Players:GetPlayers() do
+				if V ~= Client then
+					RemoteEvent:FireClient(V, Channel, ...)
+				end
+			end
+		end
+	end
+
+	function Network.OnUnreliableServerEvent(Channel, Callback)
+		if RunService:IsServer() then
+			return UnreliableRemoteEvent.OnServerEvent:Connect(function(Client, RecievedChannel, ...)
+				if RecievedChannel == Channel then
+					Callback(Client, ...)
+				end
+			end)
+		end
+	end
+
+	function Network.OnServerEvent(Channel, Callback)
+		if RunService:IsServer() then
+			return RemoteEvent.OnServerEvent:Connect(function(Client, RecievedChannel, ...)
+				if RecievedChannel == Channel then
+					Callback(Client, ...)
+				end
+			end)
+		end
 	end
 end
 
@@ -238,8 +395,6 @@ do -- PhaseTypes
 		local Players = game:GetService("Players")
 
 		local Shared = ReplicatedStorage.Shared
-
-		local Network = require(Shared.Network)
 
 		local Payload = {}
 		Payload.__index = Payload
@@ -500,11 +655,6 @@ do -- PhaseTypes
 	
 	do -- Target
 		-- Welcome to the EASIEST code of my life
-		local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-		local Shared = ReplicatedStorage.Shared
-
-		local Network = require(Shared.Network)
 
 		local Target = {}
 		Target.__index = Target
@@ -599,7 +749,7 @@ do -- PhaseTypes
 		PhaseTypes.Target = Target
 	end
 	
-	do
+	do -- Bomb
 		local ReplicatedStorage = game:GetService("ReplicatedStorage")
 		local Players = game:GetService("Players")
 
@@ -1111,7 +1261,6 @@ function Raid:PackUI(Player)
 	
 end
 
-
 function Raid:Start()
 	assert(#self.Phases > 0, "Raids must have at least one phase!")
 	
@@ -1149,7 +1298,7 @@ function Raid:Start()
 	self.Official = true
 	self.Modified = false
 	self.Timestamp = os.clock()
-	self.RaidCode = Crypto.Random.Alphanumeric(8)
+	self.RaidCode = Utility.RandomAlphanumericString(8)
 	
 	Network:FireAllClients("RaidStart")
 	
