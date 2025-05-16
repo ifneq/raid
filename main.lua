@@ -600,15 +600,10 @@ do -- PhaseTypes
 	end
 	
 	do
-		local ServerStorage = game:GetService("ServerStorage")
 		local ReplicatedStorage = game:GetService("ReplicatedStorage")
 		local Players = game:GetService("Players")
 
 		local Shared = ReplicatedStorage.Shared
-
-		local Utility = require(Shared.Utility)
-
-		local BombModel = script.Model
 
 		local Bomb = {}
 		Bomb.__index = Bomb
@@ -618,6 +613,7 @@ do -- PhaseTypes
 
 			assert(Properties.Region, "Bomb must have a region!")
 			assert(Properties.Pickup, "Bomb must have a pickup!")
+			assert(Properties.BombModel, "Bomb must have a model!")
 
 			local self = setmetatable({}, Bomb)
 
@@ -627,6 +623,7 @@ do -- PhaseTypes
 
 			self.Region = Properties.Region -- Bomb Properties
 			self.Pickup = Properties.Pickup
+			self.BombModel = Properties.BombModel
 			self.MaxBombs = Properties.MaxBombs or 0
 
 			self.MaxTime = Properties.Time or 60 * 1 -- Time Properties
@@ -715,7 +712,7 @@ do -- PhaseTypes
 			local Humanoid = Character:FindFirstChild("Humanoid")
 
 			if not self.ActiveBomb then
-				self.ActiveBomb = Utility.Clone(BombModel, {
+				self.ActiveBomb = Utility.Clone(self.BombModel, {
 					Name = "Bomb",
 					CFrame = Character:FindFirstChild("Torso").CFrame - Character:FindFirstChild("Torso").CFrame.LookVector,
 					Parent = Character
